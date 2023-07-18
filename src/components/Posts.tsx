@@ -1,8 +1,7 @@
 'use client'
 
-import { getPosts } from '@/services/posts';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import React from 'react'
+import { PostsService } from '@/services/posts';
+import { useQuery } from '@tanstack/react-query';
 
 export type PostProps = {
   id: number;
@@ -13,7 +12,7 @@ export type PostProps = {
 const Posts = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['posts'],
-    queryFn: getPosts
+    queryFn: PostsService.getPosts
   })
 
   return (
