@@ -1,34 +1,202 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# React Query integration on NextJS 13
 
-## Getting Started
+- You need the following pieces working together to implement `@tanstack/react-query`:
+    - Prisma - Optional
+    - API Service
+    - API Route
+    - React Query Utils
+    - Server Component
+    - Client Component - to enable controls
 
-First, run the development server:
+## Prisma
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
+1. Fist setup Prisma for the project somehow.
+2. Generate `PrimsClient`.
+3. Create `src/libraries/prisma/index.ts`.
+    
+    ```tsx
+    import { PrismaClient } from "@prisma/client";
+    
+    const globalForPrisma = global as unknown as { prisma: PrismaClient };
+    
+    export const prisma =
+      globalForPrisma.prisma ||
+      new PrismaClient({
+        log: ["query"],
+      });
+    
+    if (process.env.NODE_ENV != "production") globalForPrisma.prisma;
+    ```
+    
+
+## API Service
+
+`src/services/posts.ts`
+
+```tsx
+import { BASE_URL } from '@/constants';
+import { Post } from '@prisma/client';
+
+export namespace PostsService {
+  export async function getPosts() {
+    const posts = await fetch(`${BASE_URL}/api/v1/posts`);
+
+    if(!posts.ok) throw new Error('Failed to fetch posts');
+    
+    return posts.json();
+  }
+
+  export async function deletePost(deletedPost: Post) {
+    const response = await fetch(`${BASE_URL}/api/v1/posts`, {
+      method: 'DELETE',
+      body: JSON.stringify(deletedPost),
+    });
+
+    if(!response.ok) throw new Error('Failed to delete post');
+  }
+}
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## API Route
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+`src/app/api/v1/posts/route.ts`
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+```tsx
+import { prisma } from '@/libraries/prisma';
+import { NextRequest, NextResponse } from 'next/server';
 
-## Learn More
+export async function GET() {
+  const posts = await prisma.post.findMany({
+    include: {
+      User: true
+    }
+  });
 
-To learn more about Next.js, take a look at the following resources:
+  return NextResponse.json(posts);
+}
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+export async function DELETE(request: NextRequest) {
+  const body = await request.json();
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+  if(!body.id) return NextResponse.error().json();
+ 
+  const post = await prisma.post.delete({
+    where: {
+      id: body.id
+    }
+  });
 
-## Deploy on Vercel
+  return NextResponse.json(post);
+}
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## React Query Utils
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+### `getQueryClient.ts`
+
+`src/utils/getQueryClient.ts`
+
+```tsx
+import { QueryClient } from '@tanstack/react-query';
+import { cache } from 'react';
+
+export const getQueryClient = cache(() => new QueryClient());
+```
+
+### `hydrateClient.tsx`
+
+`src/utils/hydrateClient.tsx`
+
+```tsx
+'use client'
+
+import { Hydrate as RQHydrate, type HydrateProps } from '@tanstack/react-query';
+
+/**
+ * This file may be redundant in the future, but for now it's needed to avoid a type error.
+ */
+export function Hydrate(props: HydrateProps) {
+  return <RQHydrate {...props} />;
+}
+```
+
+### `providers.tsx`
+
+`src/utils/providers.tsx`
+
+```tsx
+'use client'
+
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React from 'react';
+
+export default function Providers({ children }: { children: React.ReactNode }) {
+  const [queryClient] = React.useState(() => new QueryClient())
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      {children}
+    </QueryClientProvider>
+  )
+}
+```
+
+## Server Component
+
+```tsx
+import { dehydrate } from '@tanstack/react-query';
+import { getQueryClient } from '../../utils/getQueryClient';
+import { Hydrate } from '../../utils/hydrateClient';
+import { PostsService } from '../../services/posts';
+import Posts  from '../client/Posts';
+
+export default async function PostSection() {
+  const queryClient = getQueryClient();
+  await queryClient.prefetchQuery(['posts'], PostsService.getPosts);
+  const dehydratedState = dehydrate(queryClient);
+  
+  return (
+    <Hydrate state={dehydratedState}>
+      <Posts />
+    </Hydrate>
+  )
+}
+```
+
+## Client Component
+
+### Get data
+
+```tsx
+'use client'
+
+import { Post, User } from '@prisma/client';
+import { useQuery } from '@tanstack/react-query';
+import { PostsService } from '../../services/posts';
+
+export default function Posts() {
+  const { data, isLoading } = useQuery<(Post & { User: User })[]>({
+    queryKey: ['posts'],
+    queryFn: () => PostsService.getPosts(),
+  })
+
+  return (
+    <div>
+      {
+        !isLoading && data && data.map((post) => {
+          const title = `${post.title} by ${post.User.name}`;
+          
+          return (
+            <div key={post.id}>
+              <h2>{title}</h2>
+              <p>
+                <strong>{post.content}</strong>
+              </p>
+            </div>
+          )
+        })
+      }
+    </div>
+  )
+}
+```
