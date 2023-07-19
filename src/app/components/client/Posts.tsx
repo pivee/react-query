@@ -2,7 +2,7 @@
 
 import { Post, User } from '@prisma/client';
 import { useQuery } from '@tanstack/react-query';
-import { PostsService } from '../api/v1/posts/service';
+import { PostsService } from '../../api/v1/posts/service';
 
 export default function Posts() {
   const { data, isLoading } = useQuery<(Post & { User: User })[]>({
