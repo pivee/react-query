@@ -1,4 +1,4 @@
-import Providers from '@/providers';
+import Providers from './utils/providers';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
