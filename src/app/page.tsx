@@ -1,8 +1,8 @@
-import Post from '@/components/Posts';
-import { PostsService } from '@/services/posts';
 import { dehydrate } from '@tanstack/react-query';
-import { getQueryClient } from '../utils/getQueryClient';
-import { Hydrate } from '../utils/hydrateClient';
+import { getQueryClient } from './utils/getQueryClient';
+import { Hydrate } from './utils/hydrateClient';
+import { PostsService } from './api/v1/posts/service';
+import Posts from './components/Posts';
 
 export default async function Home() {
   const queryClient = getQueryClient();
@@ -12,7 +12,7 @@ export default async function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
       <Hydrate state={dehydratedState}>
-        <Post />
+        <Posts />
       </Hydrate>
     </main>
   )
