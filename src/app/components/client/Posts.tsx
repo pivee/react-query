@@ -13,14 +13,19 @@ export default function Posts() {
   return (
     <div>
       {
-        data && data.map((post) => (
-          <div key={post.id}>
-            <h2>{post.title} <small>By {post.User.name}</small></h2>
-            <blockquote>
-              <strong>{post.content}</strong>
-            </blockquote>
-          </div>
-        ))
+        data && data.map((post) => {
+          const title = `${post.title} by ${post.User.name}`;
+          
+          return (
+            <div key={post.id}>
+              <h2>{title}</h2>
+              <p>
+                <strong>{post.content}</strong>
+              </p>
+              <button onClick={() => alert(title)}>Delete</button>
+            </div>
+          )
+        })
       }
     </div>
   )
