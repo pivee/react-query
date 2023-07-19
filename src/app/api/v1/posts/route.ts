@@ -1,4 +1,4 @@
-import { prisma } from '@/libs/prisma';
+import { prisma } from '@/libraries/prisma';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET() {
@@ -14,6 +14,8 @@ export async function GET() {
 export async function DELETE(request: NextRequest) {
   const body = await request.json();
 
+  if(!body.id) return NextResponse.error().json();
+ 
   const post = await prisma.post.delete({
     where: {
       id: body.id

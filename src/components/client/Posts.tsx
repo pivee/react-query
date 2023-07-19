@@ -2,7 +2,7 @@
 
 import { Post, User } from '@prisma/client';
 import { useQuery } from '@tanstack/react-query';
-import { PostsService } from '../../api/v1/posts/service';
+import { PostsService } from '../../services/posts';
 
 export default function Posts() {
   const { data, isLoading } = useQuery<(Post & { User: User })[]>({
@@ -13,7 +13,7 @@ export default function Posts() {
   return (
     <div>
       {
-        data && data.map((post) => {
+        !isLoading && data && data.map((post) => {
           const title = `${post.title} by ${post.User.name}`;
           
           return (
@@ -22,7 +22,7 @@ export default function Posts() {
               <p>
                 <strong>{post.content}</strong>
               </p>
-              <button onClick={() => alert(title)}>Delete</button>
+              <button onClick={() => PostsService.deletePost(post)}>Delete</button>
             </div>
           )
         })
